@@ -2,7 +2,7 @@
 
 use IO::File;
 use Image::Size qw(:all);
-use Test::More tests => 23;
+use Test::More tests => 24;
 
 # We now only test the CWS branch if the user already has Compress::Zlib
 # available. We no longer require it for installation.
@@ -66,6 +66,10 @@ ok(($x == 638 && $y == 949 && $id eq 'EMF'), 'Basic EMF format test');
 # Test WEBP code from Baldur Kristinsson
 ($x, $y, $id) = imgsize("${dir}1.sm.webp");
 ok(($x == 320 && $y == 214 && $id eq 'WEBP'), 'Basic WEBP format test');
+
+# Test WEBP image with metadata
+($x, $y, $id) = imgsize("${dir}monkey.webp");
+ok(($x == 229 && $y == 320 && $id eq 'WEBP'), 'Test WEBP image with metadata');
 
 # Test ICO code from Baldur Kristinsson
 ($x, $y, $id) = imgsize("${dir}tux.ico");

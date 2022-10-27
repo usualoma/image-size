@@ -923,32 +923,50 @@ sub emfsize
 sub webpsize {
     my $img = shift;
 
-    # There are 26 bytes of lead-in, before the width and height info:
     # 1. WEBP container
     #    - 'RIFF', 4 bytes
     #    - filesize, 4 bytes
     #    - 'WEBP', 4 bytes
-    # 2. VP8 frame
-    #    - 'VP8', 3 bytes
-    #    - frame meta, 8 bytes
-    #    - marker, 3 bytes
-    my $buf = $READ_IN->($img, 4, 26);
-    my ($raw_w, $raw_h) = unpack '(SS)<', $buf;
-    my $b14 = 2**14 - 1;
+    # 2. Chunk
+    #    - chunk header , 4 bytes
+    my $chunk_header = $READ_IN->($img, 4, 12);
+    if ($chunk_header eq 'VP8X') {
+        # There are 24 bytes of lead-in, before the width and height info:
+        # 1. WEBP container - 12 bytes
+        # 2. VP8X frame
+        #    - 'VP8V', 4 bytes
+        #    - frame meta, 8 bytes
+        my $buf = $READ_IN->($img, 6, 24);
+        my @buf = unpack('C*', $buf);
+        my $width = ($buf[0] + ($buf[1] << 8) + ($buf[2] << 16)) + 1;
+        my $height = ($buf[3] + ($buf[4] << 8) + ($buf[5] << 16)) + 1;
+        return ($width, $height, 'WEBP');
+    }
+    else {
+        # There are 26 bytes of lead-in, before the width and height info:
+        # 1. WEBP container - 12 bytes
+        # 2. VP8 frame
+        #    - 'VP8', 3 bytes
+        #    - frame meta, 8 bytes
+        #    - marker, 3 bytes
+        my $buf = $READ_IN->($img, 4, 26);
+        my ($raw_w, $raw_h) = unpack 'SS', $buf;
+        my $b14 = 2**14 - 1;
 
-    # The width and height values contain a 2-bit scaling factor,
-    # which is left-shifted by 14 bits. We ignore this, since it seems
-    # not to be relevant for our purposes. WEBP images in actual use
-    # all seem to have a scaling factor of 0, anyway. (The meaning
-    # of the scaling factor is as follows: 0=no upscale, 1=upscale by 5/4,
-    # 2=upscale by 5/3, 3=upscale by 2).
-    #
-    # my $wscale = $raw_w >> 14;
-    # my $hscale = $raw_h >> 14;
-    my $x = $raw_w & $b14;
-    my $y = $raw_h & $b14;
+        # The width and height values contain a 2-bit scaling factor,
+        # which is left-shifted by 14 bits. We ignore this, since it seems
+        # not to be relevant for our purposes. WEBP images in actual use
+        # all seem to have a scaling factor of 0, anyway. (The meaning
+        # of the scaling factor is as follows: 0=no upscale, 1=upscale by 5/4,
+        # 2=upscale by 5/3, 3=upscale by 2).
+        #
+        # my $wscale = $raw_w >> 14;
+        # my $hscale = $raw_h >> 14;
+        my $x = $raw_w & $b14;
+        my $y = $raw_h & $b14;
 
-    return ($x, $y, 'WEBP');
+        return ($x, $y, 'WEBP');
+    }
 }
 
 # ICO files, originally contributed by Thomas Walloschke <thw@cpan.org>,
